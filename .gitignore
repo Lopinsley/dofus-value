@@ -19,3 +19,15 @@ yarn-error.log
 /.fleet
 /.idea
 /.vscode
+
+# Keep storage structure
+!storage/framework/
+!storage/framework/cache/
+!storage/framework/cache/data/
+!storage/framework/sessions/
+!storage/framework/views/
+!storage/framework/testing/
+!storage/app/
+!storage/app/public/
+!storage/logs/
+!storage/**/.gitkeep
