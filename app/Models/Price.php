@@ -8,21 +8,12 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class Price extends Model
 {
     protected $fillable = [
-        'item_id',
-        'server',
-        'price_1',
-        'price_10',
-        'price_100',
-        'volume',
-        'recorded_at',
+        'item_id', 'price_1', 'price_10', 'price_100',
+        'server', 'recorded_at'
     ];
 
     protected $casts = [
         'recorded_at' => 'datetime',
-        'price_1' => 'integer',
-        'price_10' => 'integer',
-        'price_100' => 'integer',
-        'volume' => 'integer',
     ];
 
     public function item(): BelongsTo
@@ -30,14 +21,9 @@ class Price extends Model
         return $this->belongsTo(Item::class);
     }
 
-    // Prix unitaire formaté en kamas
-    public function getFormattedPrice1Attribute(): string
-    {
-        if (!$this->price_1) return 'N/A';
-        return number_format($this->price_1, 0, ',', ' ') . ' K';
-    }
-
-    // Tendance : compare avec le prix précédent
+    /**
+     * Calcule la tendance par rapport au prix précédent
+     */
     public function getTrendAttribute(): string
     {
         $previous = Price::where('item_id', $this->item_id)
@@ -46,12 +32,29 @@ class Price extends Model
             ->latest('recorded_at')
             ->first();
 
-        if (!$previous || !$previous->price_1 || !$this->price_1) return 'stable';
+        if (!$previous) return 'stable';
 
-        $diff = (($this->price_1 - $previous->price_1) / $previous->price_1) * 100;
+        $diff = $this->price_1 - $previous->price_1;
+        $percent = $previous->price_1 > 0 ? ($diff / $previous->price_1) * 100 : 0;
 
-        if ($diff > 5) return 'up';
-        if ($diff < -5) return 'down';
+        if ($percent > 5) return 'up';
+        if ($percent < -5) return 'down';
         return 'stable';
+    }
+
+    /**
+     * Retourne le pourcentage de variation
+     */
+    public function getVariationPercentAttribute(): float
+    {
+        $previous = Price::where('item_id', $this->item_id)
+            ->where('server', $this->server)
+            ->where('recorded_at', '<', $this->recorded_at)
+            ->latest('recorded_at')
+            ->first();
+
+        if (!$previous || $previous->price_1 === 0) return 0.0;
+
+        return round((($this->price_1 - $previous->price_1) / $previous->price_1) * 100, 2);
     }
 }

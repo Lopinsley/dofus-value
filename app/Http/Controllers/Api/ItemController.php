@@ -4,88 +4,132 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Item;
-use App\Services\PriceAnalyzer;
+use App\Models\Price;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 
 class ItemController extends Controller
 {
-    public function __construct(private readonly PriceAnalyzer $analyzer) {}
-
     /**
-     * GET /api/items — Liste paginée avec recherche
+     * Liste tous les items avec leur dernier prix
      */
     public function index(Request $request): JsonResponse
     {
-        $query = Item::query();
+        $server = $request->get('server', 'draconiros');
+        $type   = $request->get('type');
+        $search = $request->get('q');
 
-        if ($search = $request->get('q')) {
-            $query->search($search);
-        }
+        $items = Cache::remember("items.{$server}.{$type}.{$search}", 300, function () use ($server, $type, $search) {
+            $query = Item::with(['prices' => function ($q) use ($server) {
+                $q->where('server', $server)->latest('recorded_at')->limit(1);
+            }]);
 
-        if ($category = $request->get('category')) {
-            $query->byCategory($category);
-        }
+            if ($type) $query->where('type', $type);
+            if ($search) $query->where('name', 'like', "%{$search}%");
 
-        if ($level = $request->get('level')) {
-            $query->where('level', '<=', $level);
-        }
+            return $query->orderBy('name')->get()->map(fn($item) => $this->formatItem($item, $server));
+        });
 
-        $items = $query->orderBy('name')
-            ->paginate($request->get('per_page', 24));
-
-        return response()->json([
-            'data' => $items->items(),
-            'meta' => [
-                'total' => $items->total(),
-                'per_page' => $items->perPage(),
-                'current_page' => $items->currentPage(),
-                'last_page' => $items->lastPage(),
-            ],
-        ]);
+        return response()->json($items);
     }
 
     /**
-     * GET /api/items/{slug} — Détail d'un item avec stats de prix
+     * Détail d'un item avec historique de prix
      */
-    public function show(string $slug, Request $request): JsonResponse
+    public function show(Request $request, string $slug): JsonResponse
     {
+        $server = $request->get('server', 'draconiros');
+
         $item = Item::where('slug', $slug)->firstOrFail();
-        $days = (int) $request->get('days', 30);
-        $server = $request->get('server', 'all');
 
-        $stats = $this->analyzer->getStats($item, $days, $server);
+        $history = Price::where('item_id', $item->id)
+            ->where('server', $server)
+            ->orderBy('recorded_at')
+            ->get()
+            ->map(fn($p) => [
+                'date'      => $p->recorded_at->toDateTimeString(),
+                'price_x1'  => $p->price_x1,
+                'price_x10' => $p->price_x10,
+                'price_x100'=> $p->price_x100,
+                'trend'     => $p->trend,
+            ]);
 
         return response()->json([
-            'item' => $item,
-            'stats' => $stats,
-            'craft' => [
-                'cost' => $item->craftCost(),
-                'margin' => $item->craftMargin(),
-                'recipe' => $item->recipe,
-            ],
+            ...$this->formatItem($item, $server),
+            'history' => $history,
+            'craft'   => $item->craftMargin($server),
         ]);
     }
 
     /**
-     * GET /api/items/trending — Items les plus tendance
+     * Items en tendance (plus forte variation dans les 24h)
      */
-    public function trending(): JsonResponse
+    public function trending(Request $request): JsonResponse
     {
-        $trending = $this->analyzer->getTrendingItems(10);
+        $server = $request->get('server', 'draconiros');
+
+        $trending = Cache::remember("trending.{$server}", 600, function () use ($server) {
+            return Item::with('prices')->get()
+                ->map(function ($item) use ($server) {
+                    $latest = $item->latestPrice($server);
+                    if (!$latest) return null;
+                    return [
+                        ...$this->formatItem($item, $server),
+                        'variation_percent' => $latest->variation_percent,
+                    ];
+                })
+                ->filter()
+                ->sortByDesc('variation_percent')
+                ->values()
+                ->take(20);
+        });
 
         return response()->json($trending);
     }
 
     /**
-     * GET /api/items/craft-opportunities — Meilleures opportunités de craft
+     * Meilleures opportunités de craft
      */
     public function craftOpportunities(Request $request): JsonResponse
     {
-        $opportunities = $this->analyzer->getBestCraftOpportunities(
-            (int) $request->get('limit', 20)
-        );
+        $server = $request->get('server', 'draconiros');
+        $minMargin = $request->get('min_margin', 10); // % minimum
 
-        return response()->json(['data' => $opportunities]);
+        $opportunities = Cache::remember("craft.{$server}.{$minMargin}", 600, function () use ($server, $minMargin) {
+            return Item::whereNotNull('recipe')->get()
+                ->map(function ($item) use ($server, $minMargin) {
+                    $margin = $item->craftMargin($server);
+                    if (!$margin || $margin['margin_percent'] < $minMargin) return null;
+                    return [
+                        ...$this->formatItem($item, $server),
+                        'craft' => $margin,
+                    ];
+                })
+                ->filter()
+                ->sortByDesc('craft.margin_percent')
+                ->values();
+        });
+
+        return response()->json($opportunities);
+    }
+
+    private function formatItem(Item $item, string $server): array
+    {
+        $latest = $item->latestPrice($server);
+        return [
+            'id'        => $item->id,
+            'dofus_id'  => $item->dofus_id,
+            'name'      => $item->name,
+            'slug'      => $item->slug,
+            'type'      => $item->type,
+            'level'     => $item->level,
+            'image_url' => $item->image_url,
+            'price'     => $latest?->price_x1,
+            'price_x10' => $latest?->price_x10,
+            'price_x100'=> $latest?->price_x100,
+            'trend'     => $latest?->trend ?? 'stable',
+            'variation' => $latest?->variation_percent ?? 0,
+        ];
     }
 }

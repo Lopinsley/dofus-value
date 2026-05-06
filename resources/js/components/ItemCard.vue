@@ -1,60 +1,69 @@
 <template>
-  <Link :href="`/items/${item.slug}`" class="card-hover flex items-center gap-3 group">
-    <!-- Image -->
-    <img
-      :src="item.image_url || '/img/placeholder-item.png'"
-      :alt="item.name"
-      class="item-image shrink-0"
-    />
-
-    <!-- Info -->
-    <div class="flex-1 min-w-0">
-      <p class="text-sm font-medium text-white truncate group-hover:text-orange-300 transition-colors">
-        {{ item.name }}
-      </p>
-      <p class="text-xs text-gray-500">Niv. {{ item.level }} · {{ item.category }}</p>
+  <div @click="$emit('click', item)"
+       class="group relative bg-gray-900 border border-gray-800 rounded-2xl p-4 hover:border-amber-500/50 hover:-translate-y-1 transition-all duration-300 cursor-pointer overflow-hidden">
+    <!-- Trend glow background -->
+    <div class="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity"
+         :class="{
+           'bg-gradient-to-br from-emerald-500/5 to-transparent': item.trend === 'up',
+           'bg-gradient-to-br from-red-500/5 to-transparent': item.trend === 'down',
+           'bg-gradient-to-br from-amber-500/5 to-transparent': item.trend === 'stable',
+         }">
     </div>
 
-    <!-- Prix + Tendance -->
-    <div class="text-right shrink-0">
-      <p class="kamas text-sm">{{ formattedPrice }}</p>
-      <span :class="badgeClass">
-        {{ trendIcon }} {{ Math.abs(change).toFixed(1) }}%
-      </span>
+    <div class="relative">
+      <!-- Image + Badge -->
+      <div class="relative mb-3">
+        <img :src="item.image_url" :alt="item.name"
+             class="h-16 w-16 mx-auto rounded-xl bg-gray-800 object-contain"
+             @error="$event.target.src='https://via.placeholder.com/64/1f2937/6b7280?text=?'" />
+        <!-- Trend badge -->
+        <span class="absolute -top-1 -right-1 h-6 w-6 rounded-full flex items-center justify-center text-xs font-bold shadow-lg"
+              :class="{
+                'bg-emerald-500 text-white': item.trend === 'up',
+                'bg-red-500 text-white': item.trend === 'down',
+                'bg-gray-700 text-gray-300': item.trend === 'stable',
+              }">
+          {{ item.trend === 'up' ? '↑' : item.trend === 'down' ? '↓' : '→' }}
+        </span>
+      </div>
+
+      <!-- Name -->
+      <h3 class="text-sm font-semibold text-white text-center truncate mb-1">{{ item.name }}</h3>
+      <p class="text-xs text-gray-500 text-center capitalize mb-3">{{ item.type }} • Niv. {{ item.level }}</p>
+
+      <!-- Price -->
+      <div class="bg-gray-800/50 rounded-xl p-3 text-center">
+        <div class="text-lg font-display font-bold text-amber-400">
+          {{ formatKamas(item.price) }}
+        </div>
+        <div class="text-xs text-gray-500 mt-0.5">
+          x10: {{ formatKamas(item.price_x10) }}
+        </div>
+      </div>
+
+      <!-- Variation -->
+      <div v-if="item.variation !== 0" class="mt-2 text-center">
+        <span class="text-xs font-bold"
+              :class="item.variation > 0 ? 'text-emerald-400' : 'text-red-400'">
+          {{ item.variation > 0 ? '+' : '' }}{{ item.variation }}%
+        </span>
+        <span class="text-xs text-gray-600 ml-1">24h</span>
+      </div>
     </div>
-  </Link>
+  </div>
 </template>
 
 <script setup>
-import { Link } from '@inertiajs/vue3'
-import { computed } from 'vue'
-
-const props = defineProps({
-  item: Object,
-  change: Number,
-  trend: {
-    type: String,
-    default: 'stable',
-  },
+defineProps({
+  item: { type: Object, required: true }
 })
 
-const formattedPrice = computed(() => {
-  const price = props.item.latest_price
-  if (!price) return '?'
-  if (price >= 1_000_000) return (price / 1_000_000).toFixed(1) + 'M K'
-  if (price >= 1_000) return (price / 1_000).toFixed(0) + 'K K'
-  return price.toLocaleString() + ' K'
-})
+defineEmits(['click'])
 
-const trendIcon = computed(() => ({
-  up: '↑',
-  down: '↓',
-  stable: '→',
-}[props.trend] ?? '→'))
-
-const badgeClass = computed(() => ({
-  up: 'badge-up',
-  down: 'badge-down',
-  stable: 'badge-stable',
-}[props.trend] ?? 'badge-stable'))
+function formatKamas(amount) {
+  if (!amount) return '—'
+  if (amount >= 1_000_000) return (amount / 1_000_000).toFixed(1) + ' MK'
+  if (amount >= 1_000) return (amount / 1_000).toFixed(0) + 'K'
+  return amount + ' K'
+}
 </script>

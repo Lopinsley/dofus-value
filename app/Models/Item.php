@@ -4,50 +4,25 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Support\Str;
 
 class Item extends Model
 {
     protected $fillable = [
-        'dofus_id',
-        'name',
-        'slug',
-        'category',
-        'level',
-        'image_url',
-        'recipe',
-        'effects',
+        'dofus_id', 'name', 'slug', 'category', 'level',
+        'image_url', 'effects', 'recipe', 'craft_cost'
     ];
 
     protected $casts = [
-        'recipe' => 'array',
         'effects' => 'array',
+        'recipe' => 'array',
     ];
 
-    // Relations
     public function prices(): HasMany
     {
         return $this->hasMany(Price::class);
     }
 
-    public function alerts(): HasMany
-    {
-        return $this->hasMany(PriceAlert::class);
-    }
-
-    // Scopes
-    public function scopeByCategory($query, string $category)
-    {
-        return $query->where('category', $category);
-    }
-
-    public function scopeSearch($query, string $term)
-    {
-        return $query->where('name', 'like', "%{$term}%");
-    }
-
-    // Helpers
-    public function latestPrice(string $server = 'all'): ?Price
+    public function latestPrice(string $server = 'draconiros'): ?Price
     {
         return $this->prices()
             ->where('server', $server)
@@ -55,47 +30,48 @@ class Item extends Model
             ->first();
     }
 
-    public function priceHistory(int $days = 30, string $server = 'all')
+    /**
+     * Calcule le coût de craft basé sur les prix actuels des ingrédients
+     */
+    public function craftCost(string $server = 'draconiros'): ?int
     {
-        return $this->prices()
-            ->where('server', $server)
-            ->where('recorded_at', '>=', now()->subDays($days))
-            ->orderBy('recorded_at')
-            ->get();
-    }
-
-    public function craftCost(): ?int
-    {
-        if (!$this->recipe) return null;
+        if (empty($this->recipe)) return null;
 
         $total = 0;
         foreach ($this->recipe as $ingredient) {
-            $item = self::where('dofus_id', $ingredient['item_id'])->first();
-            if (!$item) continue;
-            $price = $item->latestPrice()?->price_1;
+            $ingredientItem = Item::where('dofus_id', $ingredient['id'])->first();
+            if (!$ingredientItem) return null;
+
+            $price = $ingredientItem->latestPrice($server);
             if (!$price) return null;
-            $total += $price * $ingredient['quantity'];
+
+            $total += $price->price_1 * $ingredient['quantity'];
         }
 
         return $total;
     }
 
-    public function craftMargin(): ?float
+    /**
+     * Calcule la marge de craft (prix HDV - coût craft)
+     */
+    public function craftMargin(string $server = 'draconiros'): ?array
     {
-        $craftCost = $this->craftCost();
-        $sellPrice = $this->latestPrice()?->price_1;
+        $cost = $this->craftCost($server);
+        if (!$cost) return null;
 
-        if (!$craftCost || !$sellPrice) return null;
+        $latestPrice = $this->latestPrice($server);
+        if (!$latestPrice) return null;
 
-        return round((($sellPrice - $craftCost) / $craftCost) * 100, 2);
-    }
+        $sellPrice = $latestPrice->price_1;
+        $margin = $sellPrice - $cost;
+        $marginPercent = $cost > 0 ? round(($margin / $cost) * 100, 1) : 0;
 
-    protected static function boot()
-    {
-        parent::boot();
-
-        static::creating(function ($item) {
-            $item->slug = Str::slug($item->name);
-        });
+        return [
+            'craft_cost' => $cost,
+            'sell_price' => $sellPrice,
+            'margin' => $margin,
+            'margin_percent' => $marginPercent,
+            'is_profitable' => $margin > 0,
+        ];
     }
 }
