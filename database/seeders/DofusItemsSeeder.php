@@ -37,7 +37,7 @@ class DofusItemsSeeder extends Seeder
             $item = Item::updateOrCreate(
                 ['dofus_id' => $itemData['dofus_id']],
                 array_merge($itemData, [
-                    'image_url' => "https://assets.dofusdb.fr/games/dofus2/items/{$itemData['dofus_id']}.png"
+                    'image_url' => "https://api.dofusdu.de/dofus3/v1/img/item/{$itemData['dofus_id']}-64.png"
                 ])
             );
 
