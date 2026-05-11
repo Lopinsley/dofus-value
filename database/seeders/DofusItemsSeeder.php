@@ -63,5 +63,9 @@ class DofusItemsSeeder extends Seeder
         }
 
         $this->command->info('✅ ' . count($items) . ' items Dofus seedés avec images vérifiées !');
+
+        // Vider le cache pour que les nouvelles données soient visibles immédiatement
+        \Illuminate\Support\Facades\Cache::flush();
+        $this->command->info('🧹 Cache vidé.');
     }
 }

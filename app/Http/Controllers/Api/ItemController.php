@@ -20,7 +20,10 @@ class ItemController extends Controller
 
         $cacheKey = "items.{$server}.{$type}.{$search}";
 
-        $items = Cache::remember($cacheKey, 300, function () use ($server, $type, $search) {
+        // TTL court (30s) en dev, 5min en prod
+        $ttl = app()->isProduction() ? 300 : 30;
+
+        $items = Cache::remember($cacheKey, $ttl, function () use ($server, $type, $search) {
             $query = Item::query();
             if ($type)   $query->where('category', $type);
             if ($search) $query->where('name', 'like', "%{$search}%");
@@ -57,7 +60,7 @@ class ItemController extends Controller
     {
         $server = $request->get('server', 'draconiros');
 
-        $trending = Cache::remember("trending.{$server}", 600, function () use ($server) {
+        $trending = Cache::remember("trending.{$server}", app()->isProduction() ? 300 : 30, function () use ($server) {
             return Item::all()->map(function ($item) use ($server) {
                 $latest = $this->getLatestPrice($item->id, $server);
                 $prev   = $this->getPreviousPrice($item->id, $server, $latest?->recorded_at);

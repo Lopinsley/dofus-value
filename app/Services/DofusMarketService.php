@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Item;
 use App\Models\Price;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 
 class DofusMarketService
@@ -76,6 +77,7 @@ class DofusMarketService
             }
         }
 
+        Cache::flush(); // Invalider le cache après génération des prix
         return $count;
     }
 
