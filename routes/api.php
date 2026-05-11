@@ -2,7 +2,7 @@
 
 use App\Http\Controllers\Api\ItemController;
 use App\Http\Controllers\Api\AlertController;
-use App\Http\Controllers\Api\ImportController;
+use App\Http\Controllers\Api\PriceSubmitController;
 
 Route::prefix('v1')->group(function () {
     // Items
@@ -11,12 +11,16 @@ Route::prefix('v1')->group(function () {
     Route::get('/items/craft',    [ItemController::class, 'craftOpportunities']);
     Route::get('/items/{slug}',   [ItemController::class, 'show']);
 
+    // Soumission de prix par la communauté
+    Route::post('/prices',       [PriceSubmitController::class, 'store']);
+    Route::post('/prices/bulk',  [PriceSubmitController::class, 'bulk']);
+
     // Alertes
     Route::get('/alerts',         [AlertController::class, 'index']);
     Route::post('/alerts',        [AlertController::class, 'store']);
     Route::delete('/alerts/{id}', [AlertController::class, 'destroy']);
 
     // Import CSV
-    Route::post('/import/csv',       [ImportController::class, 'csv']);
-    Route::get('/import/template',   [ImportController::class, 'template']);
+    Route::post('/import/csv',     [ImportController::class, 'csv']);
+    Route::get('/import/template', [ImportController::class, 'template']);
 });

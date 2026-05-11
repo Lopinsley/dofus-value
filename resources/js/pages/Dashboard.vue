@@ -260,6 +260,11 @@
         </div>
       </div>
 
+    <!-- SUBMIT TAB -->
+      <div v-if="activeTab === 'submit'">
+        <PriceSubmit :server="server" />
+      </div>
+
     <!-- IMPORT TAB -->
       <div v-if="activeTab === 'import'">
         <CsvImport />
@@ -277,6 +282,7 @@ import { ref, onMounted } from 'vue'
 import ItemCard from '../components/ItemCard.vue'
 import ItemDetail from '../components/ItemDetail.vue'
 import CsvImport from '../components/CsvImport.vue'
+import PriceSubmit from '../components/PriceSubmit.vue'
 
 const server       = ref('draconiros')
 const activeTab    = ref('trending')
@@ -309,6 +315,7 @@ const tabs = [
   { id: 'craft',    icon: '⚗️', label: 'Craft' },
   { id: 'compare',  icon: '⚖️', label: 'Comparer' },
   { id: 'alerts',   icon: '🔔', label: 'Alertes' },
+  { id: 'submit',   icon: '💰', label: 'Soumettre prix' },
   { id: 'import',   icon: '📥', label: 'Import CSV' },
 ]
 
