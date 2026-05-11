@@ -15,7 +15,7 @@
       <div class="relative mb-3">
         <img :src="item.image_url" :alt="item.name"
              class="h-16 w-16 mx-auto rounded-xl bg-gray-800 object-contain"
-             @error="$event.target.src='https://via.placeholder.com/64/1f2937/6b7280?text=?'" />
+             @error="onImgError($event)" />
         <!-- Trend badge -->
         <span class="absolute -top-1 -right-1 h-6 w-6 rounded-full flex items-center justify-center text-xs font-bold shadow-lg"
               :class="{
@@ -59,6 +59,12 @@ defineProps({
 })
 
 defineEmits(['click'])
+
+function onImgError(event) {
+  // Remplace l'img par un SVG inline — aucune requête externe
+  const svg = `data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='64' height='64' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%231f2937'/%3E%3Ctext x='50%25' y='55%25' font-size='28' text-anchor='middle' dominant-baseline='middle' fill='%236b7280'%3E%3F%3C/text%3E%3C/svg%3E`
+  event.target.src = svg
+}
 
 function formatKamas(amount) {
   if (!amount) return '—'
