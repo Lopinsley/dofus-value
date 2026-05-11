@@ -7,20 +7,27 @@ use Illuminate\Console\Command;
 
 class ScrapeMarketPrices extends Command
 {
-    protected $signature   = 'dofus:scrape {--server=all : Server to scrape (draconiros/ombre/hellmina/orukam/all)}';
-    protected $description = 'Scrape Dofus HDV prices from dofusdu.de API';
+    protected $signature   = 'dofus:scrape {--server=all : Server (draconiros/ombre/hellmina/orukam/all)} {--history : Générer historique 7j}';
+    protected $description = 'Génère des prix de marché réalistes pour DofusValue';
 
     public function handle(DofusMarketService $service): void
     {
-        $server = $this->option('server');
+        if ($this->option('history')) {
+            $this->info('📈 Génération de l\'historique 7 jours pour tous les serveurs...');
+            $count = $service->generateAllHistory(7);
+            $this->info("✅ Historique généré pour {$count} combinaisons item/serveur !");
+            return;
+        }
+
+        $server  = $this->option('server');
         $servers = $server === 'all' ? DofusMarketService::SERVERS : [$server];
 
         foreach ($servers as $srv) {
-            $this->info("🔄 Scraping {$srv}...");
+            $this->info("🔄 Génération des prix pour {$srv}...");
             $count = $service->scrapeServer($srv);
-            $this->info("✅ {$count} prix récupérés pour {$srv}");
+            $this->info("✅ {$count} prix générés pour {$srv}");
         }
 
-        $this->info('🎉 Scraping terminé !');
+        $this->info('🎉 Terminé !');
     }
 }
