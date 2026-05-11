@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\ItemController;
 use App\Http\Controllers\Api\AlertController;
+use App\Http\Controllers\Api\ImportController;
 
 Route::prefix('v1')->group(function () {
     // Items
@@ -14,4 +15,8 @@ Route::prefix('v1')->group(function () {
     Route::get('/alerts',         [AlertController::class, 'index']);
     Route::post('/alerts',        [AlertController::class, 'store']);
     Route::delete('/alerts/{id}', [AlertController::class, 'destroy']);
+
+    // Import CSV
+    Route::post('/import/csv',       [ImportController::class, 'csv']);
+    Route::get('/import/template',   [ImportController::class, 'template']);
 });

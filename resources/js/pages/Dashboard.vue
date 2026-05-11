@@ -8,14 +8,27 @@
           <span class="text-xl font-display font-bold text-white">DofusValue</span>
           <span class="text-xs px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400 font-semibold">BETA</span>
         </div>
-        <!-- Server selector -->
-        <select v-model="server" @change="loadAll"
-                class="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-300 focus:border-amber-500 focus:outline-none">
-          <option value="draconiros">🐉 Draconiros</option>
-          <option value="ombre">🌑 Ombre</option>
-          <option value="hellmina">⚡ Hellmina</option>
-          <option value="orukam">🔥 Orukam</option>
-        </select>
+        <!-- Server selector + Auth -->
+        <div class="flex items-center gap-3">
+          <select v-model="server" @change="loadAll"
+                  class="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-300 focus:border-amber-500 focus:outline-none">
+            <option value="draconiros">🐉 Draconiros</option>
+            <option value="ombre">🌑 Ombre</option>
+            <option value="hellmina">⚡ Hellmina</option>
+            <option value="orukam">🔥 Orukam</option>
+          </select>
+          <a v-if="!authUser" href="/login"
+             class="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-gray-900 text-sm font-bold rounded-lg transition-colors">
+            Connexion
+          </a>
+          <div v-else class="flex items-center gap-2">
+            <span class="text-xs text-gray-400">👤 {{ authUser }}</span>
+            <form method="POST" action="/logout" class="inline">
+              <input type="hidden" name="_token" :value="csrfToken" />
+              <button type="submit" class="text-xs text-gray-500 hover:text-white transition-colors">Déconnexion</button>
+            </form>
+          </div>
+        </div>
       </div>
     </header>
 
@@ -247,6 +260,11 @@
         </div>
       </div>
 
+    <!-- IMPORT TAB -->
+      <div v-if="activeTab === 'import'">
+        <CsvImport />
+      </div>
+
     </div>
 
     <!-- Modal détail item -->
@@ -258,6 +276,7 @@
 import { ref, onMounted } from 'vue'
 import ItemCard from '../components/ItemCard.vue'
 import ItemDetail from '../components/ItemDetail.vue'
+import CsvImport from '../components/CsvImport.vue'
 
 const server       = ref('draconiros')
 const activeTab    = ref('trending')
@@ -265,6 +284,8 @@ const search       = ref('')
 const filterType   = ref('')
 const selectedItem = ref(null)
 const showAlertForm = ref(false)
+const authUser     = ref(window.__AUTH_USER__ || null)
+const csrfToken    = ref(document.querySelector('meta[name="csrf-token"]')?.content || '')
 
 const trending     = ref([])
 const items        = ref([])
@@ -288,6 +309,7 @@ const tabs = [
   { id: 'craft',    icon: '⚗️', label: 'Craft' },
   { id: 'compare',  icon: '⚖️', label: 'Comparer' },
   { id: 'alerts',   icon: '🔔', label: 'Alertes' },
+  { id: 'import',   icon: '📥', label: 'Import CSV' },
 ]
 
 async function loadTrending() {

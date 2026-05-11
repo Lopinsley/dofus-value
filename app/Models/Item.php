@@ -22,6 +22,11 @@ class Item extends Model
         return $this->hasMany(Price::class);
     }
 
+    public function views(): HasMany
+    {
+        return $this->hasMany(ItemView::class);
+    }
+
     public function latestPrice(string $server = 'draconiros'): ?Price
     {
         return $this->prices()

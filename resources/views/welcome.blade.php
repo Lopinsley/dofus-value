@@ -8,6 +8,7 @@
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 <body class="bg-gray-950 text-white antialiased">
+    <script>window.__AUTH_USER__ = @json(auth()->user()?->name)</script>
     <div id="app"></div>
 </body>
 </html>
