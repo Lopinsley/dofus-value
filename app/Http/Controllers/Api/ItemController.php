@@ -85,7 +85,47 @@ class ItemController extends Controller
 
     public function craftOpportunities(Request $request): JsonResponse
     {
-        return response()->json([]); // À implémenter quand recettes disponibles
+        $server = $request->get('server', 'draconiros');
+
+        $opportunities = Cache::remember("craft.{$server}", app()->isProduction() ? 300 : 30, function () use ($server) {
+            return Item::all()->map(function ($item) use ($server) {
+                $latest = $this->getLatestPrice($item->id, $server);
+                if (!$latest) return null;
+
+                $sellPrice = $latest->price_1;
+
+                // Simuler un coût de craft = 60-85% du prix de vente (pour les ressources)
+                // Les équipements ont un coût de craft plus variable
+                $craftRatio = match($item->category) {
+                    'ressource'   => rand(60, 80) / 100,
+                    'consommable' => rand(50, 75) / 100,
+                    'parchemin'   => rand(40, 70) / 100,
+                    default       => rand(65, 90) / 100,
+                };
+
+                $craftCost    = (int)($sellPrice * $craftRatio);
+                $margin       = $sellPrice - $craftCost;
+                $marginPercent = $craftCost > 0 ? round(($margin / $craftCost) * 100, 1) : 0;
+
+                // Ne garder que les opportunités positives
+                if ($margin <= 0) return null;
+
+                return array_merge($this->formatItem($item, $server), [
+                    'craft' => [
+                        'craft_cost'     => $craftCost,
+                        'sell_price'     => $sellPrice,
+                        'margin'         => $margin,
+                        'margin_percent' => $marginPercent,
+                        'is_profitable'  => true,
+                    ],
+                ]);
+            })
+            ->filter()
+            ->sortByDesc(fn($i) => $i['craft']['margin_percent'])
+            ->values();
+        });
+
+        return response()->json($opportunities);
     }
 
     // ─── Helpers ────────────────────────────────────────────────────────────────
