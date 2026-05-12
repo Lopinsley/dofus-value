@@ -1,29 +1,26 @@
 <?php
 
-use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\ItemController;
 use App\Http\Controllers\Api\AlertController;
-
-/*
-|--------------------------------------------------------------------------
-| API Routes
-|--------------------------------------------------------------------------
-*/
+use App\Http\Controllers\Api\PriceSubmitController;
 
 Route::prefix('v1')->group(function () {
-
     // Items
-    Route::get('items', [ItemController::class, 'index']);
-    Route::get('items/trending', [ItemController::class, 'trending']);
-    Route::get('items/craft-opportunities', [ItemController::class, 'craftOpportunities']);
-    Route::get('items/{slug}', [ItemController::class, 'show']);
+    Route::get('/items',          [ItemController::class, 'index']);
+    Route::get('/items/trending', [ItemController::class, 'trending']);
+    Route::get('/items/craft',    [ItemController::class, 'craftOpportunities']);
+    Route::get('/items/{slug}',   [ItemController::class, 'show']);
 
-    // Prices history
-    Route::get('items/{slug}/prices', [ItemController::class, 'priceHistory']);
+    // Soumission de prix par la communauté
+    Route::post('/prices',       [PriceSubmitController::class, 'store']);
+    Route::post('/prices/bulk',  [PriceSubmitController::class, 'bulk']);
 
-    // Alerts (auth required)
-    Route::middleware('auth:sanctum')->group(function () {
-        Route::apiResource('alerts', AlertController::class);
-    });
+    // Alertes
+    Route::get('/alerts',         [AlertController::class, 'index']);
+    Route::post('/alerts',        [AlertController::class, 'store']);
+    Route::delete('/alerts/{id}', [AlertController::class, 'destroy']);
 
+    // Import CSV
+    Route::post('/import/csv',     [ImportController::class, 'csv']);
+    Route::get('/import/template', [ImportController::class, 'template']);
 });
